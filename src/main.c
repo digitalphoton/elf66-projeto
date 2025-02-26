@@ -11,30 +11,60 @@
 #include "task.h"
 
 /* -------------------------------------------------------------------------- */
-/* Protótipos de funções                                                      */
+/*   Definições de tipo                                                       */
+/* -------------------------------------------------------------------------- */
+
+typedef enum
+{
+    STARTUP,
+    STANDBY,
+    DESLIGADO,
+    PISCA,
+    LIGADO
+}
+Estados;
+
+
+/* -------------------------------------------------------------------------- */
+/*   Variáveis Globais                                                        */
+/* -------------------------------------------------------------------------- */
+
+Estados estadoAtual;
+
+/* -------------------------------------------------------------------------- */
+/*   Protótipos de funções                                                    */
 /* -------------------------------------------------------------------------- */
 
 void usart1Begin(uint32_t baudrate);
+void gpioBegin(void);
 
-void vTaskHello(void *pvParameters);
-void vTaskWorld(void *pvParameters);
+void vTaskSensor(void *pvParameters);
+void vTaskAtuador(void *pvParameters);
+void vTaskSerialEnvia(void *pvParameters);
+void vTaskSerialRecebe(void *pvParameters);
 
 /* -------------------------------------------------------------------------- */
 /* Função main()                                                              */
 /* -------------------------------------------------------------------------- */
 
-int main(void) {
+int main(void)
+{
+    estadoAtual = STARTUP;
+
     // Initialize clock
     SystemCoreClockUpdate();
 
-    /* Initialize UART for libc function calls. */
+    gpioBegin();
     usart1Begin(115200);
-    
 
     printf("\n#------------------------------------------------#\n\n");
 
-    xTaskCreate(vTaskHello, "HELLO", 256, NULL, 4, NULL);
-    xTaskCreate(vTaskWorld, "WORLD", 256, NULL, 4, NULL);
+    //xTaskCreate(vTaskSensor, "Sensor", 256, NULL, 4, NULL);
+    xTaskCreate(vTaskAtuador, "Atuador", 256, NULL, 4, NULL);
+    //xTaskCreate(vTaskSerialEnvia, "Envia", 256, NULL, 4, NULL);
+    //xTaskCreate(vTaskSerialRecebe, "Recebe", 256, NULL, 4, NULL);
+
+    estadoAtual = LIGADO;
 
     vTaskStartScheduler();
 
@@ -49,23 +79,8 @@ int main(void) {
 
 void usart1Begin(uint32_t baudrate)
 {
-    /* Ativar o clock da USART1 e do GPIOA */
-
-    RCC_APB2PeriphClockCmd
-    (
-        RCC_APB2Periph_USART1 | RCC_APB2Periph_GPIOA,
-        ENABLE
-    );
-
-    /* Inicializar os pinos PA9 (TX) e PA10 (RX) do GPIOA como função alternativa, com saída push-pull */
-
-    GPIO_InitTypeDef GPIO_InitStructure;
-
-    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_9 | GPIO_Pin_10;
-    GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_PP;
-
-    GPIO_Init(GPIOA, &GPIO_InitStructure);
+    /* Ativar o clock da USART1 */
+    RCC_APB2PeriphClockCmd( RCC_APB2Periph_USART1, ENABLE );
 
     /* Inicializar a interface USART1 de acordo com a baudrate desejada, com 8 bits de dados, 1 bit de stop, sem paridade, sem controle de fluxo, e com transmissão e recepção */
 
@@ -82,18 +97,88 @@ void usart1Begin(uint32_t baudrate)
     USART_Cmd(USART1, ENABLE);
 }
 
-void vTaskHello(void *pvParameters) {
-    for (;;)
-    {
-        printf("Hello\n");
-        vTaskDelay(pdMS_TO_TICKS(500));
-    }
+void gpioBegin(void)
+{
+    /* Ativar o clock do GPIOA e do GPIOB */
+
+    RCC_APB2PeriphClockCmd
+    (
+        RCC_APB2Periph_GPIOA | RCC_APB2Periph_GPIOB,
+        ENABLE
+    );
+
+    /* Inicializar os pinos PA9 (TX) e PA10 (RX) do GPIOA como função alternativa, com saída push-pull */
+
+    GPIO_InitTypeDef GPIO_InitStructure;
+
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_9 | GPIO_Pin_10;
+    GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_PP;
+
+    GPIO_Init(GPIOA, &GPIO_InitStructure);
+
+    /* Inicializar o pino PB13 como pino digital de saída push-pull */
+
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_13;
+    GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
+
+    GPIO_Init(GPIOB, &GPIO_InitStructure);
 }
-void vTaskWorld(void *pvParameters)
+
+/* -------------------------------------------------------------------------- */
+/*   Declaração das Tasks                                                     */
+/* -------------------------------------------------------------------------- */
+
+void vTaskSensor(void *pvParameters)
 {
     for (;;)
     {
-        printf("World\n");
-        vTaskDelay(pdMS_TO_TICKS(1000));
+        /* Lê o valor do potenciometro e coloca em uma variável global */
+    }
+}
+void vTaskAtuador(void *pvParameters)
+{
+    for (;;)
+    {
+        switch(estadoAtual)
+        {
+            default:
+            case DESLIGADO:
+            {
+                /* desligar LED (lógica invertida) */
+                GPIO_WriteBit(GPIOB, GPIO_Pin_13, Bit_SET);
+                break;
+            }
+            case LIGADO:
+            {
+                /* ligar LED (lógica invertida) */
+                GPIO_WriteBit(GPIOB, GPIO_Pin_13, Bit_RESET);
+                break;
+            }
+            case PISCA:
+            {
+                /* piscar LED */
+                GPIO_WriteBit(GPIOB, GPIO_Pin_13, Bit_RESET);
+                vTaskDelay(pdMS_TO_TICKS(1000));
+                GPIO_WriteBit(GPIOB, GPIO_Pin_13, Bit_SET);
+                vTaskDelay(pdMS_TO_TICKS(1000));
+                break;
+            }
+        }
+    }
+}
+void vTaskSerialEnvia(void *pvParameters)
+{
+    for (;;)
+    {
+        /* Envia o estado atual e o valor da variável global do sensor para o PC */
+    }
+}
+void vTaskSerialRecebe(void *pvParameters)
+{
+    for (;;)
+    {
+        /* Recebe comandos para mudar o estado atual */
     }
 }
