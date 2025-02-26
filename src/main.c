@@ -39,6 +39,8 @@ uint16_t g_valorPot = 0x00ff;
 void usart1Begin(uint32_t baudrate);
 void gpioBegin(void);
 
+void delay(uint64_t milliseconds);
+
 void vTaskSensor(void *pvParameters);
 void vTaskAtuador(void *pvParameters);
 void vTaskSerialEnvia(void *pvParameters);
@@ -60,12 +62,12 @@ int main(void)
 
     printf("\n#------------------------------------------------#\n\n");
 
-    //xTaskCreate(vTaskSensor, "Sensor", 256, NULL, 4, NULL);
+    xTaskCreate(vTaskSensor, "Sensor", 256, NULL, 4, NULL);
     xTaskCreate(vTaskAtuador, "Atuador", 256, NULL, 1, NULL);
     xTaskCreate(vTaskSerialEnvia, "Envia", 256, NULL, 1, NULL);
     //xTaskCreate(vTaskSerialRecebe, "Recebe", 256, NULL, 4, NULL);
 
-    g_estadoAtual = DESLIGADO;
+    g_estadoAtual = PISCA;
 
     vTaskStartScheduler();
 
@@ -127,15 +129,73 @@ void gpioBegin(void)
     GPIO_Init(GPIOB, &GPIO_InitStructure);
 }
 
+void delay(uint64_t milliseconds)
+{
+    for(milliseconds; milliseconds--; milliseconds > 0)
+    {
+        vTaskDelay( pdMS_TO_TICKS(1) );
+    }
+}
+
 /* -------------------------------------------------------------------------- */
 /*   Declaração das Tasks                                                     */
 /* -------------------------------------------------------------------------- */
 
 void vTaskSensor(void *pvParameters)
 {
+    typedef enum
+    {
+        NIVEL_0,
+        NIVEL_1,
+        NIVEL_2,
+        NIVEL_3,
+        NIVEL_4
+    }
+    Niveis;
+
+    Niveis nivelAtual = NIVEL_0;
+
     for (;;)
     {
         /* Lê o valor do potenciometro e coloca em uma variável global */
+
+        switch(nivelAtual)
+        {
+            default:
+            case NIVEL_0:
+            {
+                g_valorPot = 0;
+                break;
+            }
+            case NIVEL_1:
+            {
+                g_valorPot = 0x3ff;
+                break;
+            }
+            case NIVEL_2:
+            {
+                g_valorPot = 0x7ff;
+                break;
+            }
+            case NIVEL_3:
+            {
+                g_valorPot = 0xbff;
+                break;
+            }
+            case NIVEL_4:
+            {
+                g_valorPot = 0xfff;
+                break;
+            }
+        }
+
+        vTaskDelay(pdMS_TO_TICKS(5000));
+
+        nivelAtual++;
+        if(nivelAtual > NIVEL_4)
+        {
+            nivelAtual = NIVEL_0;
+        }
     }
 }
 void vTaskAtuador(void *pvParameters)
@@ -163,9 +223,9 @@ void vTaskAtuador(void *pvParameters)
             {
                 /* piscar LED */
                 GPIO_WriteBit(GPIOB, GPIO_Pin_13, Bit_RESET);
-                vTaskDelay(pdMS_TO_TICKS(1000));
+                delay(g_valorPot);
                 GPIO_WriteBit(GPIOB, GPIO_Pin_13, Bit_SET);
-                vTaskDelay(pdMS_TO_TICKS(1000));
+                delay(g_valorPot);
                 break;
             }
         }
