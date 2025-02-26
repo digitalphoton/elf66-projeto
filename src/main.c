@@ -29,7 +29,8 @@ Estados;
 /*   Variáveis Globais                                                        */
 /* -------------------------------------------------------------------------- */
 
-Estados estadoAtual;
+Estados g_estadoAtual;
+uint16_t g_valorPot = 0x00ff;
 
 /* -------------------------------------------------------------------------- */
 /*   Protótipos de funções                                                    */
@@ -49,7 +50,7 @@ void vTaskSerialRecebe(void *pvParameters);
 
 int main(void)
 {
-    estadoAtual = STARTUP;
+    g_estadoAtual = STARTUP;
 
     // Initialize clock
     SystemCoreClockUpdate();
@@ -60,11 +61,11 @@ int main(void)
     printf("\n#------------------------------------------------#\n\n");
 
     //xTaskCreate(vTaskSensor, "Sensor", 256, NULL, 4, NULL);
-    xTaskCreate(vTaskAtuador, "Atuador", 256, NULL, 4, NULL);
-    //xTaskCreate(vTaskSerialEnvia, "Envia", 256, NULL, 4, NULL);
+    xTaskCreate(vTaskAtuador, "Atuador", 256, NULL, 1, NULL);
+    xTaskCreate(vTaskSerialEnvia, "Envia", 256, NULL, 1, NULL);
     //xTaskCreate(vTaskSerialRecebe, "Recebe", 256, NULL, 4, NULL);
 
-    estadoAtual = LIGADO;
+    g_estadoAtual = DESLIGADO;
 
     vTaskStartScheduler();
 
@@ -141,19 +142,21 @@ void vTaskAtuador(void *pvParameters)
 {
     for (;;)
     {
-        switch(estadoAtual)
+        switch(g_estadoAtual)
         {
             default:
             case DESLIGADO:
             {
                 /* desligar LED (lógica invertida) */
                 GPIO_WriteBit(GPIOB, GPIO_Pin_13, Bit_SET);
+                vTaskDelay(pdMS_TO_TICKS(10));
                 break;
             }
             case LIGADO:
             {
                 /* ligar LED (lógica invertida) */
                 GPIO_WriteBit(GPIOB, GPIO_Pin_13, Bit_RESET);
+                vTaskDelay(pdMS_TO_TICKS(10));
                 break;
             }
             case PISCA:
@@ -173,6 +176,42 @@ void vTaskSerialEnvia(void *pvParameters)
     for (;;)
     {
         /* Envia o estado atual e o valor da variável global do sensor para o PC */
+        printf("Estado atual: ");
+        switch(g_estadoAtual)
+        {
+            default:
+            {
+                printf("INVÁLIDO");
+                break;
+            }
+            case STANDBY:
+            {
+                printf("STANDBY");
+                break;
+            }
+            case STARTUP:
+            {
+                printf("STARTUP");
+                break;
+            }
+            case DESLIGADO:
+            {
+                printf("DESLIGADO");
+                break;
+            }
+            case LIGADO:
+            {
+                printf("LIGADO");
+                break;
+            }
+            case PISCA:
+            {
+                printf("PISCA");
+                break;
+            }
+        }
+        printf(" ; Valor do Potenciometro: %d\n", g_valorPot);
+        vTaskDelay(pdMS_TO_TICKS(5000));
     }
 }
 void vTaskSerialRecebe(void *pvParameters)
