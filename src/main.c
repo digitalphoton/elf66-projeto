@@ -24,12 +24,22 @@ typedef enum
 }
 Estados;
 
+typedef enum
+{
+    NIVEL_0,
+    NIVEL_1,
+    NIVEL_2,
+    NIVEL_3,
+    NIVEL_4
+}
+Niveis;
 
 /* -------------------------------------------------------------------------- */
 /*   Variáveis Globais                                                        */
 /* -------------------------------------------------------------------------- */
 
-Estados g_estadoAtual;
+Estados g_estadoAtual = STARTUP;
+Niveis g_nivelAtual = NIVEL_0;
 uint16_t g_valorPot = 0x00ff;
 
 /* -------------------------------------------------------------------------- */
@@ -52,8 +62,6 @@ void vTaskSerialRecebe(void *pvParameters);
 
 int main(void)
 {
-    g_estadoAtual = STARTUP;
-
     // Initialize clock
     SystemCoreClockUpdate();
 
@@ -65,7 +73,7 @@ int main(void)
     xTaskCreate(vTaskSensor, "Sensor", 256, NULL, 4, NULL);
     xTaskCreate(vTaskAtuador, "Atuador", 256, NULL, 1, NULL);
     xTaskCreate(vTaskSerialEnvia, "Envia", 256, NULL, 1, NULL);
-    //xTaskCreate(vTaskSerialRecebe, "Recebe", 256, NULL, 4, NULL);
+    xTaskCreate(vTaskSerialRecebe, "Recebe", 256, NULL, 4, NULL);
 
     g_estadoAtual = PISCA;
 
@@ -143,23 +151,11 @@ void delay(uint64_t milliseconds)
 
 void vTaskSensor(void *pvParameters)
 {
-    typedef enum
-    {
-        NIVEL_0,
-        NIVEL_1,
-        NIVEL_2,
-        NIVEL_3,
-        NIVEL_4
-    }
-    Niveis;
-
-    Niveis nivelAtual = NIVEL_0;
-
     for (;;)
     {
         /* Lê o valor do potenciometro e coloca em uma variável global */
 
-        switch(nivelAtual)
+        switch(g_nivelAtual)
         {
             default:
             case NIVEL_0:
@@ -191,10 +187,10 @@ void vTaskSensor(void *pvParameters)
 
         vTaskDelay(pdMS_TO_TICKS(5000));
 
-        nivelAtual++;
-        if(nivelAtual > NIVEL_4)
+        g_nivelAtual++;
+        if(g_nivelAtual > NIVEL_4)
         {
-            nivelAtual = NIVEL_0;
+            g_nivelAtual = NIVEL_0;
         }
     }
 }
@@ -271,7 +267,7 @@ void vTaskSerialEnvia(void *pvParameters)
             }
         }
         printf(" ; Valor do Potenciometro: %d\n", g_valorPot);
-        vTaskDelay(pdMS_TO_TICKS(5000));
+        vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }
 void vTaskSerialRecebe(void *pvParameters)
@@ -279,5 +275,46 @@ void vTaskSerialRecebe(void *pvParameters)
     for (;;)
     {
         /* Recebe comandos para mudar o estado atual */
+        if( USART_GetFlagStatus( USART1, USART_FLAG_RXNE ) )
+        {
+            char dado;
+            dado = (uint8_t)(USART_ReceiveData(USART1) & 0x00ff);
+        
+            switch(dado)
+            {
+                default:
+                case '0':
+                {
+                    g_nivelAtual = NIVEL_0;
+                    g_valorPot = 0x000;
+                    break;
+                }
+                case '1':
+                {
+                    g_nivelAtual = NIVEL_1;
+                    g_valorPot = 0x3ff;
+                    break;
+                }
+                case '2':
+                {
+                    g_nivelAtual = NIVEL_2;
+                    g_valorPot = 0x7ff;
+                    break;
+                }
+                case '3':
+                {
+                    g_nivelAtual = NIVEL_3;
+                    g_valorPot = 0xbff;
+                    break;
+                }
+                case '4':
+                {
+                    g_nivelAtual = NIVEL_4;
+                    g_valorPot = 0xfff;
+                    break;
+                }
+            }
+        }
+        vTaskDelay(1);
     }
 }
