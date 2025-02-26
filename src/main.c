@@ -9,6 +9,7 @@
 
 #include "FreeRTOS.h"
 #include "task.h"
+#include "semphr.h"
 
 /* -------------------------------------------------------------------------- */
 /*   Definições de tipo                                                       */
@@ -42,6 +43,8 @@ Estados g_estadoAtual = STARTUP;
 Niveis g_nivelAtual = NIVEL_0;
 uint16_t g_valorPot = 0x00ff;
 
+SemaphoreHandle_t g_semaforo;
+
 /* -------------------------------------------------------------------------- */
 /*   Protótipos de funções                                                    */
 /* -------------------------------------------------------------------------- */
@@ -69,6 +72,8 @@ int main(void)
     usart1Begin(115200);
 
     printf("\n#------------------------------------------------#\n\n");
+    
+    g_semaforo = xSemaphoreCreateMutex();
 
     xTaskCreate(vTaskSensor, "Sensor", 256, NULL, 4, NULL);
     xTaskCreate(vTaskAtuador, "Atuador", 256, NULL, 1, NULL);
@@ -139,7 +144,7 @@ void gpioBegin(void)
 
 void delay(uint64_t milliseconds)
 {
-    for(milliseconds; milliseconds--; milliseconds > 0)
+    for(uint64_t i = milliseconds; i > 0; i--)
     {
         vTaskDelay( pdMS_TO_TICKS(1) );
     }
@@ -155,34 +160,40 @@ void vTaskSensor(void *pvParameters)
     {
         /* Lê o valor do potenciometro e coloca em uma variável global */
 
-        switch(g_nivelAtual)
+        /* Pegamos um semaforo para garantir acesso exclusivo às variáveis globais */
+        if(xSemaphoreTake( g_semaforo, (TickType_t)(10) ) == pdTRUE)
         {
-            default:
-            case NIVEL_0:
+            switch(g_nivelAtual)
             {
-                g_valorPot = 0;
-                break;
+                default:
+                case NIVEL_0:
+                {
+                    g_valorPot = 0;
+                    break;
+                }
+                case NIVEL_1:
+                {
+                    g_valorPot = 0x3ff;
+                    break;
+                }
+                case NIVEL_2:
+                {
+                    g_valorPot = 0x7ff;
+                    break;
+                }
+                case NIVEL_3:
+                {
+                    g_valorPot = 0xbff;
+                    break;
+                }
+                case NIVEL_4:
+                {
+                    g_valorPot = 0xfff;
+                    break;
+                }
             }
-            case NIVEL_1:
-            {
-                g_valorPot = 0x3ff;
-                break;
-            }
-            case NIVEL_2:
-            {
-                g_valorPot = 0x7ff;
-                break;
-            }
-            case NIVEL_3:
-            {
-                g_valorPot = 0xbff;
-                break;
-            }
-            case NIVEL_4:
-            {
-                g_valorPot = 0xfff;
-                break;
-            }
+            /* Devolvemos o semáforo, liberando o acesso às demais tasks */
+            xSemaphoreGive(g_semaforo);
         }
 
         vTaskDelay(pdMS_TO_TICKS(5000));
@@ -280,39 +291,46 @@ void vTaskSerialRecebe(void *pvParameters)
             char dado;
             dado = (uint8_t)(USART_ReceiveData(USART1) & 0x00ff);
         
-            switch(dado)
+            /* Pegamos um semaforo para garantir acesso exclusivo às variáveis globais */
+            if( xSemaphoreTake( g_semaforo, (TickType_t)(10) ) == pdTRUE )
             {
-                default:
-                case '0':
+                switch(dado)
                 {
-                    g_nivelAtual = NIVEL_0;
-                    g_valorPot = 0x000;
-                    break;
+                    default:
+                    case '0':
+                    {
+                        g_nivelAtual = NIVEL_0;
+                        g_valorPot = 0x000;
+                        break;
+                    }
+                    case '1':
+                    {
+                        g_nivelAtual = NIVEL_1;
+                        g_valorPot = 0x3ff;
+                        break;
+                    }
+                    case '2':
+                    {
+                        g_nivelAtual = NIVEL_2;
+                        g_valorPot = 0x7ff;
+                        break;
+                    }
+                    case '3':
+                    {
+                        g_nivelAtual = NIVEL_3;
+                        g_valorPot = 0xbff;
+                        break;
+                    }
+                    case '4':
+                    {
+                        g_nivelAtual = NIVEL_4;
+                        g_valorPot = 0xfff;
+                        break;
+                    }
                 }
-                case '1':
-                {
-                    g_nivelAtual = NIVEL_1;
-                    g_valorPot = 0x3ff;
-                    break;
-                }
-                case '2':
-                {
-                    g_nivelAtual = NIVEL_2;
-                    g_valorPot = 0x7ff;
-                    break;
-                }
-                case '3':
-                {
-                    g_nivelAtual = NIVEL_3;
-                    g_valorPot = 0xbff;
-                    break;
-                }
-                case '4':
-                {
-                    g_nivelAtual = NIVEL_4;
-                    g_valorPot = 0xfff;
-                    break;
-                }
+
+                /* Devolvemos o semáforo, liberando o acesso às demais tasks */
+                xSemaphoreGive(g_semaforo);
             }
         }
         vTaskDelay(1);
