@@ -54,10 +54,10 @@ void gpioBegin(void);
 
 void delay(uint64_t milliseconds);
 
-void vTaskSensor(void *pvParameters);
-void vTaskAtuador(void *pvParameters);
-void vTaskSerialEnvia(void *pvParameters);
-void vTaskSerialRecebe(void *pvParameters);
+void taskSensor(void *pvParameters);
+void taskAtuador(void *pvParameters);
+void taskEnvia(void *pvParameters);
+void taskRecebe(void *pvParameters);
 
 /* -------------------------------------------------------------------------- */
 /* Função main()                                                              */
@@ -75,10 +75,10 @@ int main(void)
     
     g_semaforo = xSemaphoreCreateMutex();
 
-    xTaskCreate(vTaskSensor, "Sensor", 256, NULL, 4, NULL);
-    xTaskCreate(vTaskAtuador, "Atuador", 256, NULL, 1, NULL);
-    xTaskCreate(vTaskSerialEnvia, "Envia", 256, NULL, 1, NULL);
-    xTaskCreate(vTaskSerialRecebe, "Recebe", 256, NULL, 4, NULL);
+    xTaskCreate(taskSensor, "Sensor", 256, NULL, 4, NULL);
+    xTaskCreate(taskAtuador, "Atuador", 256, NULL, 1, NULL);
+    xTaskCreate(taskEnvia, "Envia", 256, NULL, 1, NULL);
+    xTaskCreate(taskRecebe, "Recebe", 256, NULL, 4, NULL);
 
     g_estadoAtual = PISCA;
 
@@ -154,7 +154,7 @@ void delay(uint64_t milliseconds)
 /*   Declaração das Tasks                                                     */
 /* -------------------------------------------------------------------------- */
 
-void vTaskSensor(void *pvParameters)
+void taskSensor(void *pvParameters)
 {
     for (;;)
     {
@@ -205,7 +205,7 @@ void vTaskSensor(void *pvParameters)
         }
     }
 }
-void vTaskAtuador(void *pvParameters)
+void taskAtuador(void *pvParameters)
 {
     for (;;)
     {
@@ -238,7 +238,7 @@ void vTaskAtuador(void *pvParameters)
         }
     }
 }
-void vTaskSerialEnvia(void *pvParameters)
+void taskEnvia(void *pvParameters)
 {
     for (;;)
     {
@@ -281,7 +281,7 @@ void vTaskSerialEnvia(void *pvParameters)
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }
-void vTaskSerialRecebe(void *pvParameters)
+void taskRecebe(void *pvParameters)
 {
     for (;;)
     {
