@@ -2,7 +2,7 @@
 
 cmake_minimum_required(VERSION 3.10)
 
-project(ch32v307_template)
+project(elf66-projeto)
 
 enable_language(CXX)
 enable_language(ASM)
