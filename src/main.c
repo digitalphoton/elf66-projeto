@@ -25,22 +25,11 @@ typedef enum
 }
 Estados;
 
-typedef enum
-{
-    NIVEL_0,
-    NIVEL_1,
-    NIVEL_2,
-    NIVEL_3,
-    NIVEL_4
-}
-Niveis;
-
 /* -------------------------------------------------------------------------- */
 /*   Variáveis Globais                                                        */
 /* -------------------------------------------------------------------------- */
 
 Estados g_estadoAtual = STARTUP;
-Niveis g_nivelAtual = NIVEL_0;
 uint16_t g_valorPot = 0x00ff;
 
 int16_t g_calibracaoADC = 0;
