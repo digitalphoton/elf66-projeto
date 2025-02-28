@@ -12,7 +12,7 @@
 #define configUSE_PORT_OPTIMISED_TASK_SELECTION 0
 #define configUSE_TICKLESS_IDLE                 0
 #define configCPU_CLOCK_HZ                      144000000 /* This is literally not used, keep it to make port.c happy. */
-#define configTICK_RATE_HZ                      1000
+#define configTICK_RATE_HZ                      10000
 #define configMAX_PRIORITIES                    8
 #define configMINIMAL_STACK_SIZE                128
 #define configMAX_TASK_NAME_LEN                 16
